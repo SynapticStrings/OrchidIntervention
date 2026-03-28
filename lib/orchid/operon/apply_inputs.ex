@@ -1,6 +1,7 @@
 defmodule Orchid.Operon.ApplyInputs do
   @behaviour Orchid.Operon
 
+  @impl true
   @spec call(Orchid.Operon.Request.t(), (any() -> any())) :: any()
   def call(request, next_func) do
     interventions = Orchid.WorkflowCtx.get_baggage(request.workflow_ctx, :interventions, %{})
