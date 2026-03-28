@@ -103,8 +103,8 @@ interventions = %{
   "water" => {:input, Param.new("water", :raw, 200)},
 }
 
-{:ok, result} = Orchid.run(
-  recipe,
+{:ok, results} = Orchid.run(
+  steps,
   [],  # It doesn't required inputs anymore.
   operons_stack: [Orchid.Operon.ApplyInputs],
   global_hooks_stack: [Orchid.Hook.ApplyInterventions],

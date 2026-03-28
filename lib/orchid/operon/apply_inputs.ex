@@ -26,11 +26,14 @@ defmodule Orchid.Operon.ApplyInputs do
           end
         end)
         |> Enum.reject(&is_nil/1)
+        |> Enum.map(fn p -> {p.name, p} end)
         |> Enum.into(%{})
 
       # Resolve partial inputs
+      # request.inital_params
 
-      next_func.(%{request | initial_params: injected_params})
+      # After Orchid updated, I'll correct it
+      next_func.(%{request | inital_params: injected_params})
     end
   end
 
@@ -51,9 +54,15 @@ defmodule Orchid.Operon.ApplyInputs do
     interventions
     |> Enum.filter(fn {key, _spec} ->
       normalized_key = Orchid.Step.ID.normalize_keys_to_set(key)
-      not MapSet.disjoint?(normalized_key, produced_keys)
+      MapSet.disjoint?(normalized_key, produced_keys)
     end)
-    |> Enum.reject(fn {_key, spec} -> not Map.has_key?(spec, :input) end)
+    |> Enum.reject(fn {_key, spec} ->
+      case spec do
+        %{} -> not Map.has_key?(spec, :input)
+        {:input, _} -> true
+        _ -> false
+      end
+    end)
     |> Map.new()
   end
 end
