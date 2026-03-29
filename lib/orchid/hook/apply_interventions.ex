@@ -10,17 +10,17 @@ defmodule Orchid.Hook.ApplyInterventions do
   end
 
   def prelude(%Context{} = _ctx, _interventions) do
-    # 决定最终的 OP
-    # 输出均为 :override? =>
-    # 跳过计算，直接输出结果 => 失败? 返回错误，因为这个 override 是用户期望介入的数据
-    # 如果不是 :override （有 rawOutput + override 或是其他形式的） => 需要计算
+    # Determine the final OP
+    # All outputs are :override? =>
+    # Skip the calculation and output the result directly => Failure? Return an error because this override is the data the user expects to intervene in.
+    # If it is not :override (with rawOutput + override or other forms) => Calculation is required.
   end
 
   def postlude(_result, _interventions) do
-    # 这是【经过了计算后】的结果与输入的绑定
-    # 主要包含几种情况：
-    # partial override（模型存在数个输出，其中的一或多个需要 :override）
-    # mixed calculate（模型的输出需要和 intervention 进行交互处理）
+    # This is the binding of the calculated result to the input.
+    # This mainly includes several cases:
+    # Partial override (The model has several outputs, one or more of which need to be overridden)
+    # Mixed calculation (The model's output needs to interact with the intervention)
   end
 
   # defp resolve_nil

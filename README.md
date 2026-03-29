@@ -2,61 +2,64 @@
 
 Result = DAG + Intervention.
 
+# Architecture Brief: OrchidIntervention & Generalized Storage (Orchid.Repo)
+
 ## 1. Background & Motivation
-In the [Orchid](https://hex.pm/packages/orchid) workflow engine (and its overarching Quincunx scheduling layer), we frequently need to inject external data or apply user-driven interventions (e.g., overriding a step's output, tweaking a tensor with a mask, or supplying massive static payloads like audio files). 
+In the [Orchid](https://hex.pm/packages/orchid) workflow engine, we frequently need to inject external data or apply user-driven interventions (e.g., overriding a step's output with user-edited data, or supplying massive static payloads like audio files). 
 
-Modifying the physical DAG (Directed Acyclic Graph) by inserting "dummy DataProvider nodes" during compilation pollutes the graph and complicates the compiler. 
+Instead of polluting the physical DAG with dummy "Data Provider" nodes, we handle data interventions at runtime via **Late Binding in Orchid's Hook system**. 
 
-**The Solution:** Use **Late Binding via Orchid's Hook system**. By pushing data intervention and input injection to the runtime Hook layer, we keep the underlying Recipe pure and leverage lazy evaluation.
+With the introduction of the generalized `Orchid.Repo` storage behaviour, the Intervention layer (`OrchidIntervention`) operates **independently** from the caching layer (`OrchidStratum`). It uses universal storage contracts to manage heavy payloads without memory bloat.
 
 ## 2. Core Architectural Decisions
 
-### A. Separation of Concerns (Intervention vs. Stratum)
-*   **`OrchidStratum` (The Memory):** A passive layer. It hashes inputs to find cached outputs, or executes and records them. 
-*   **`OrchidIntervention` (The Surgeon):** An active layer. It intercepts the `Orchid.Runner.Context` to force-feed specific inputs, short-circuit execution with overrides, or apply mathematical modifiers to outputs.
-*   *Separation Rule:* Interventional constants (user tweaks) **do not** enter the `MetaStorage` cache to avoid polluting the hash space, but they **can** reside in `BlobStorage`.
+### A. The Universal Storage (`Orchid.Repo`)
+`Orchid.Repo` provides a unified `{Module, store_ref}` contract. 
+When Quincunx (the scheduling layer) receives a massive intervention payload (e.g., 50MB audio), it preemptively sinks the data into a configured `Orchid.Repo` (e.g., an ETS or NIF adapter) and passes a lightweight reference tuple: `{:ref, repo_conf, key}` into the workflow baggage.
 
-### B. Storage Synergy & Free Hydration
-If an external intervention payload is massive (e.g., a 50MB audio buffer), Quincunx/DataProvider will preemptively sink it into `OrchidStratum.BlobStorage` and pass a lightweight reference: `{:ref, blob_store, hash}` into the Intervention Baggage.
-*   **The Magic:** When `OrchidIntervention.Hook` injects this `{:ref, ...}` into `ctx.inputs` and passes it down, `OrchidStratum.BypassHook` will **automatically hydrate** (fetch the raw blob) before the actual Step executes. No redundant storage logic is needed in the Intervention layer.
+### B. Self-Sufficient Hydration in Interventions
+Because `OrchidIntervention` is decoupled from caching, it takes responsibility for its own data hydration.
+*   When the `OrchidIntervention.Hook` executes and finds an `:input` intervention containing a `{:ref, repo_conf, key}`, it calls `Orchid.Repo.get/2` to fetch the raw data *before* passing execution down to the Step. 
+*   This ensures the underlying Step implementation always receives pure, raw data, maintaining complete ignorance of the storage or intervention layers.
 
 ### C. Lazy Evaluation (Thunks)
-Data sources might be remote RPCs, file reads, or frontend state. To prevent blocking the compiler, interventions are passed as thunks (`fn -> fetch_data() end`). They are evaluated precisely at the microsecond the specific Step is reached.
+Data sources might be external RPCs or file reads. Interventions are passed as thunks (`fn -> fetch_or_resolve_data() end`) to delay evaluation until the exact microsecond the targeted Step begins execution.
 
 ---
 
-## 3. The Hook Pipeline (The Onion Model)
+## 3. The Hook Pipeline & Data Lifecycle
 
-By stacking hooks, we create an elegant data execution pipeline: 
-$Result = Intervene_{post}(Stratum_{cache}(Intervene_{pre}(Step)))$
+1.  **Preparation (Outside Orchid):**
+    External payloads are written to `Orchid.Repo`. The intervention baggage is prepared: 
+    `baggage: %{interventions: %{node_a_out: %{override: {:ref, repo, key}}}}`
+2.  **Hook Execution: `OrchidIntervention.Hook` (Outer Shell)**
+    *   Reads `baggage[:interventions]` for the current node.
+    *   **Override Rule ($Short-Circuit$):** If an `:override` exists, evaluate the thunk, resolve the Repo ref (if any), and return `{:ok, values}`. The underlying Step (and any nested Hooks) is bypassed entirely.
+    *   **Input Rule ($Mutation$):** If an `:input` intervention exists, evaluate it, resolve the Repo ref, overwrite `ctx.inputs`, and invoke `next_fn.(ctx)`.
+3.  **Nested Hooks / Core Step:** 
+    *   The execution flows into standard runtime (which may optionally include `OrchidStratum` for caching, but Intervention does not care).
+    *   The Step calculates its math/logic based on the injected raw inputs.
+4.  **Post-Execution ($Modifiers$):**
+    *   When the result returns back up to the `OrchidIntervention.Hook`, it applies late mathematical interventions like `:offset` or `:mask` (e.g., $Result = RawResult \times Mask + Offset$) before finalizing the output.
 
-1.  **Global Level Hook (Pre-Graph-Check): Initial Inputs Injection**
-    *   *Concept:* Orchid has an outer hook layer that runs before graph integrity validation. We can use this to resolve dynamic/remote "Workflow Inputs" and inject them into the initial payload, cleanly separating Data Provisioning from Orchid's core execution.
-2.  **Step Level Hook - Shell 1: `OrchidIntervention.Hook`**
-    *   Reads `baggage[:interventions]`.
-    *   *Condition Override:* If an output intervention exists, evaluate the thunk, return the value, and **short-circuit** the workflow (bypassing Stratum and the Step entirely).
-    *   *Condition Input:* If an input intervention exists, evaluate it, mutate `ctx.inputs`, and call `next_fn`. 
-3.  **Step Level Hook - Shell 2: `OrchidStratum.BypassHook`** *(Optional)*
-    *   Receives the formally mutated inputs. Computes the $StepKey$.
-    *   Either serves a Cache Hit or calls `next_fn`.
-    *   Dehydrates outputs and updates `MetaStorage`.
-4.  **Core Step Execution:** 
-    *   Ignorant of the layers above, just executes pure logic.
-5.  **Post-Execution (Unwinding the Onion):**
-    *   When the result bubbles back up to `OrchidIntervention.Hook`, handle `Modifier` interventions (e.g., applying a mathematical offset or mask to the raw outputs) before returning the final result to the Blackboard.
+## 4. API & Typology
 
-## 4. Intervention Typology API Draft
-
-Interventions are mapped by output/input keys using deterministic atoms:
+Interventions are defined using standard Elixir types and the new `Orchid.Repo` primitives:
 
 ```elixir
 @type intervention_type :: :input | :override | :offset | :mask | :scale
-@type value_thunk :: raw_data() | (-> raw_data())
+@type repo_ref_tuple :: {:ref, {module(), Orchid.Repo.store_ref()}, Orchid.Repo.key()}
+@type value_thunk :: term() | repo_ref_tuple() | (-> term() | repo_ref_tuple())
 
 @type intervention_map :: %{
   Orchid.Step.io_key() => %{intervention_type() => value_thunk()}
 }
 ```
+
+**Design Principles:**
+
+1.  **Fail-Fast Evaluation:** If a thunk crashes or an `Orchid.Repo.get/2` returns `:miss` during interpolation, the workflow crashes. Missing interventional data is a fatal boundary error.
+2.  **Orthogonality to Cache:** By keeping `OrchidIntervention` structurally outside of caching logic, overridden or modified values don't accidentally poison the deterministic cache keys generated by `OrchidStratum`.
 
 ## 5. Usecase
 
@@ -101,6 +104,7 @@ And then:
 interventions = %{
   "beans" => {:input, Param.new("beans", :raw, 20)},
   "water" => {:input, Param.new("water", :raw, 200)},
+  "powder" => {:override, Param.new("powder", :solid, 25)}
 }
 
 {:ok, results} = Orchid.run(
