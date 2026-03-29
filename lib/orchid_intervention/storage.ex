@@ -1,3 +1,0 @@
-defmodule OrchidIntervention.Storage do
-  # ...
-end
