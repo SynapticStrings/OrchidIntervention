@@ -1,5 +1,5 @@
 %{
-  "orchid": {:hex, :orchid, "0.5.8", "0ad8f348e83931ed00e48a02eaf6a5955f12fe7f4c2e2ea194344041f66020a8", [:mix], [{:telemetry, "~> 1.3", [hex: :telemetry, repo: "hexpm", optional: false]}], "hexpm", "41a3b2ad19a8d1354ac6c16295514d44ce8f2852f60e95ab65a72457246dd304"},
+  "orchid": {:hex, :orchid, "0.6.0", "180c3315cf2f2e58497031e221557d99d6c3f59882924cbb4992ed6cb917fbcc", [:mix], [{:telemetry, "~> 1.3", [hex: :telemetry, repo: "hexpm", optional: false]}], "hexpm", "66ddc98f4c18c05969fd574fbc53a3a2d50df0c7567dac76f4c9ae564aa3904a"},
   "orchid_stratum": {:hex, :orchid_stratum, "0.1.0", "8bac49b9c3be1b52e5b921210f3433950f6272b8e1e4811b3e2d4b4977fc1104", [:mix], [{:orchid, "~> 0.5", [hex: :orchid, repo: "hexpm", optional: false]}], "hexpm", "5f6e255be397613bda5e48095f27933dfba5f4dab4729694848cf8e7e62f3817"},
   "telemetry": {:hex, :telemetry, "1.4.1", "ab6de178e2b29b58e8256b92b382ea3f590a47152ca3651ea857a6cae05ac423", [:rebar3], [], "hexpm", "2172e05a27531d3d31dd9782841065c50dd5c3c7699d95266b2edd54c2dafa1c"},
 }
