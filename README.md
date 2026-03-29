@@ -36,7 +36,7 @@ $Result = Intervene_{post}(Stratum_{cache}(Intervene_{pre}(Step)))$
     *   Reads `baggage[:interventions]`.
     *   *Condition Override:* If an output intervention exists, evaluate the thunk, return the value, and **short-circuit** the workflow (bypassing Stratum and the Step entirely).
     *   *Condition Input:* If an input intervention exists, evaluate it, mutate `ctx.inputs`, and call `next_fn`. 
-3.  **Step Level Hook - Shell 2: `OrchidStratum.BypassHook`**
+3.  **Step Level Hook - Shell 2: `OrchidStratum.BypassHook`** *(Optional)*
     *   Receives the formally mutated inputs. Computes the $StepKey$.
     *   Either serves a Cache Hit or calls `next_fn`.
     *   Dehydrates outputs and updates `MetaStorage`.

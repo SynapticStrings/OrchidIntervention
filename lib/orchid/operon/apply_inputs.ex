@@ -31,10 +31,9 @@ defmodule Orchid.Operon.ApplyInputs do
         |> Enum.into(%{})
 
       # Resolve partial inputs
-      # request.inital_params
+      # request.initial_params
 
-      # After Orchid updated, I'll correct it
-      next_func.(%{request | inital_params: injected_params})
+      next_func.(%{request | initial_params: injected_params})
     end
   end
 
