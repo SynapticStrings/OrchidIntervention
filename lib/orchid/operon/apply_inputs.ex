@@ -13,33 +13,46 @@ defmodule Orchid.Operon.ApplyInputs do
       injected_params =
         initial_input_interventions
         |> Enum.map(fn {key, spec} ->
-          case Map.get(spec, :input) do
-            nil ->
-              nil
+          case spec do
+            %{input: val} ->
+              {key, OrchidIntervention.Resolver.resolve(val)}
 
-            thunk when is_function(thunk, 0) ->
-              # value = Intervention.eval_thunk(thunk)
-              # hydrated = BlobStorage.hydrate(value)
-              ensure_param(thunk.(), key)
+            {:input, val} ->
+              {key, OrchidIntervention.Resolver.resolve(val)}
 
-            %Orchid.Param{} = p ->
-              p
+            # [] = list_interventions ->
+            #   Enum.find(list_interventions, fn {_spec, val} ->  end)
           end
         end)
-        |> Enum.reject(&is_nil/1)
-        |> Enum.map(fn p -> {p.name, p} end)
+        |> IO.inspect()
         |> Enum.into(%{})
 
-      # Resolve partial inputs
-      # request.initial_params
+      final_initial_params =
+        request.initial_params
+        |> case do
+          [] ->
+            %{}
 
-      next_func.(%{request | initial_params: injected_params})
+          [_ | _] = list_params ->
+            Enum.map(list_params, fn p -> {p.name, p} end) |> Enum.into(%{})
+
+          %Orchid.Param{} = p ->
+            %{p.name => p}
+
+          %{} = map ->
+            map
+
+          nil ->
+            %{}
+        end
+        |> Map.merge(injected_params)
+
+      next_func.(%{
+        request
+        | initial_params: final_initial_params
+      })
     end
   end
-
-  defp ensure_param(value, key, type \\ :raw)
-  defp ensure_param(%Orchid.Param{} = p, _key, _type), do: p
-  defp ensure_param(value, key, type), do: Orchid.Param.new(key, type, value)
 
   defp filter_initial_inputs(steps, interventions) do
     produced_keys =
