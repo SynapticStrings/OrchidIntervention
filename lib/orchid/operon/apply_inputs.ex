@@ -19,9 +19,6 @@ defmodule Orchid.Operon.ApplyInputs do
 
             {:input, val} ->
               {key, OrchidIntervention.Resolver.resolve(val)}
-
-            # [] = list_interventions ->
-            #   Enum.find(list_interventions, fn {_spec, val} ->  end)
           end
         end)
         |> IO.inspect()
