@@ -17,7 +17,10 @@ defmodule Orchid.Hook.ApplyInterventions do
 
   defp extract_step_interventions(out_keys, all_interventions) do
     keys = Orchid.Step.ID.normalize_keys_to_set(out_keys) |> MapSet.to_list()
+
     Map.take(all_interventions, keys)
+
+    # TODO: take :override to OrchidIntervention.Operate.Override
   end
 
   def prelude(%Context{} = _ctx, _interventions) do

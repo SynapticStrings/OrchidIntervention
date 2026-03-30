@@ -2,9 +2,6 @@ defmodule OrchidIntervention.Operate.Override do
   @behaviour OrchidIntervention.Operate
 
   @impl true
-  def stage, do: :postlude
-
-  @impl true
   def short_circuit?, do: true
 
   @impl true

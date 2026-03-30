@@ -2,19 +2,9 @@ defmodule OrchidIntervention.Operate do
   @moduledoc """
   Declara how interventions that from outside take effect to
   Orchid DAG's specific Param.
+
+  For some custome type/module. like mask, overlap, etc.
   """
-
-  @type stage :: :prelude | :postlude
-
-  @doc """
-  Declare at which stage the intervention will be performed:
-
-  - `:prelude`: Before the Step is executed.
-      Typically used to overwrite (:override) data.
-  - `:postlude`: After the Step is executed.
-      Typically used to modify calculation results (e.g., :offset, :mask).
-  """
-  @callback stage() :: stage()
 
   @callback short_circuit?() :: boolean()
 
@@ -30,8 +20,8 @@ defmodule OrchidIntervention.Operate do
   @doc """
   Perform the actual merge or overwrite logic.
 
-  - For `:prelude`, `inner_data` is nil.
-  - For `:postlude`, `inner_data` is the original result calculated by Step.
+  - If `short_circuit?` is true, `inner_data` is nil.
+  - Else, `inner_data` is the original result calculated by Step.
   """
   @callback merge(
               inner_data :: Orchid.Param.payload() | nil,
