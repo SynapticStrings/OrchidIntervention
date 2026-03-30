@@ -1,4 +1,4 @@
 %{
-  "orchid": {:hex, :orchid, "0.6.0", "180c3315cf2f2e58497031e221557d99d6c3f59882924cbb4992ed6cb917fbcc", [:mix], [{:telemetry, "~> 1.3", [hex: :telemetry, repo: "hexpm", optional: false]}], "hexpm", "66ddc98f4c18c05969fd574fbc53a3a2d50df0c7567dac76f4c9ae564aa3904a"},
+  "orchid": {:hex, :orchid, "0.6.1", "08176dc4a138133b0523c096637dd57858baa2c0fcdde477d4551300c2114f7b", [:mix], [{:telemetry, "~> 1.3", [hex: :telemetry, repo: "hexpm", optional: false]}], "hexpm", "75ee8617f13e1cb861c54cf48e93338c209a93a334772548e923cb8fd8f3756b"},
   "telemetry": {:hex, :telemetry, "1.4.1", "ab6de178e2b29b58e8256b92b382ea3f590a47152ca3651ea857a6cae05ac423", [:rebar3], [], "hexpm", "2172e05a27531d3d31dd9782841065c50dd5c3c7699d95266b2edd54c2dafa1c"},
 }

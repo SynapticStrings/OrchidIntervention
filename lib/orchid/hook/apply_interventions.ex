@@ -4,9 +4,20 @@ defmodule Orchid.Hook.ApplyInterventions do
   alias Orchid.Runner.Context
 
   def call(ctx, next_fn) do
-    _interventions = Orchid.WorkflowCtx.get_baggage(ctx.workflow_ctx, :interventions, %{})
+    interventions = Orchid.WorkflowCtx.get_baggage(ctx.workflow_ctx, :interventions, %{})
 
-    next_fn.(ctx)
+    step_interventions = extract_step_interventions(ctx.out_keys, interventions)
+
+    if map_size(step_interventions) == 0 do
+      next_fn.(ctx)
+    else
+      # (ctx, step_interventions)
+    end
+  end
+
+  defp extract_step_interventions(out_keys, all_interventions) do
+    keys = Orchid.Step.ID.normalize_keys_to_set(out_keys) |> MapSet.to_list()
+    Map.take(all_interventions, keys)
   end
 
   def prelude(%Context{} = _ctx, _interventions) do
