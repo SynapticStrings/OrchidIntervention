@@ -3,29 +3,35 @@ defmodule OrchidInterventionStorageTest do
 
   defmodule InterventionStorage do
     @behaviour Orchid.Repo
+    @behaviour Orchid.Repo.ContentAddressable
 
-    def init(session_name),
-      do: :ets.new(session_to_table(session_name), [:set, :public, :named_table])
+    def init, do: :ets.new(__MODULE__, [:set, :public])
 
-    @impl Orchid.Repo
-    def get(session_name, key) do
-      case :ets.lookup(session_to_table(session_name), key) do
+    @impl true
+    def get(ets_ref, key) do
+      case :ets.lookup(ets_ref, key) do
         [{^key, val}] -> {:ok, val}
         [] -> :miss
       end
     end
 
-    @impl Orchid.Repo
-    def put(session_name, key, val) do
-      :ets.insert(session_to_table(session_name), {key, val})
+    @impl true
+    def put(ets_ref, key, val) do
+      :ets.insert(ets_ref, {key, val})
+
       :ok
     end
 
-    defp session_to_table(session_name), do: :"#{session_name}_Intervention"
+    @impl true
+    def exists?(ets_ref, key) do
+      :ets.member(ets_ref, key)
+    end
   end
 
   defmodule MockIntervention do
-    # Generate raw 
+    def generate() do
+      # ...
+    end
   end
 
   describe "outside can inject interventions via storage" do
