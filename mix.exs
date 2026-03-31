@@ -12,8 +12,15 @@ defmodule OrchidIntervention.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       description: description(),
+      elixirc_paths: elixirc_paths(Mix.env()),
       package: package(),
-      docs: docs()
+      docs: docs(),
+      test_coverage: [
+        ignore_modules: [
+          ~r/OrchidInterventionTest.OrchidSteps.*/,
+          OrchidIntervention.Operate.Override
+        ]
+      ]
     ]
   end
 
@@ -22,6 +29,9 @@ defmodule OrchidIntervention.MixProject do
       extra_applications: [:logger]
     ]
   end
+
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
 
   defp description do
     """
@@ -54,7 +64,7 @@ defmodule OrchidIntervention.MixProject do
       main: "readme",
       extras: ["README.md"],
       source_ref: "v#{@version}",
-      source_url: @source_url,
+      source_url: @source_url
     ]
   end
 end

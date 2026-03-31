@@ -80,7 +80,8 @@ defmodule Orchid.Hook.ApplyInterventions do
 
           case mod.merge(nil, Orchid.Param.get_payload(resolved)) do
             {:ok, merged_payload} ->
-              %{resolved | payload: merged_payload}
+              # Make sure key is overrided
+              %{resolved | payload: merged_payload, name: key}
 
             {:error, reason} ->
               throw({:intervention_merge_error, key, reason})
@@ -107,7 +108,7 @@ defmodule Orchid.Hook.ApplyInterventions do
 
         case Map.get(interventions, key) do
           nil ->
-            {:cont, {:ok, Map.put(acc, key, param)}}
+            {:cont, {:ok, [param | acc]}}
 
           {type, intervention_payload} ->
             mod = Operate.resolve_module(type)
@@ -128,6 +129,7 @@ defmodule Orchid.Hook.ApplyInterventions do
         # Order doesn't matter.
         # Only need ensure the name and param's relationship.
         {:ok, maybe_list |> format_output()}
+
       error ->
         error
     end
@@ -144,10 +146,13 @@ defmodule Orchid.Hook.ApplyInterventions do
     Orchid.Step.ID.normalize_keys_to_set(out_keys) |> MapSet.to_list()
   end
 
-  defp normalize_result_to_map(%Orchid.Param{} = p, [key]), do: %{key => p}
+  defp normalize_result_to_map(%Orchid.Param{} = p, key) when is_atom(key) or is_binary(key), do: %{key => p}
+  defp normalize_result_to_map(%Orchid.Param{} = p, [key]) when is_atom(key) or is_binary(key), do: %{key => p}
+
   defp normalize_result_to_map(params, out_keys) when is_list(params) do
     Enum.zip(out_keys, params) |> Map.new()
   end
+
   defp normalize_result_to_map(%{} = map, _out_keys), do: map
 
   defp format_output([single_param]), do: single_param
