@@ -33,7 +33,7 @@ defmodule OrchidIntervention.MixProject do
   defp deps do
     [
       {:orchid, "~> 0.6"},
-      {:ex_doc, "~> 0.40"}
+      {:ex_doc, "~> 0.40", only: :dev, runtime: false}
     ]
   end
 
