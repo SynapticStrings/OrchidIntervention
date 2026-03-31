@@ -148,8 +148,7 @@ defmodule Orchid.Hook.ApplyInterventions do
     Orchid.Step.ID.normalize_keys_to_set(out_keys) |> MapSet.to_list()
   end
 
-  defp normalize_result_to_map(%Orchid.Param{} = p, key) when is_atom(key) or is_binary(key), do: %{key => p}
-  defp normalize_result_to_map(%Orchid.Param{} = p, [key]) when is_atom(key) or is_binary(key), do: %{key => p}
+  defp normalize_result_to_map(%Orchid.Param{} = p, [key]) when is_atom(key) or is_binary(key), do: normalize_result_to_map(p, key)
 
   defp normalize_result_to_map(params, out_keys) when is_list(params) do
     Enum.zip(out_keys, params) |> Map.new()
