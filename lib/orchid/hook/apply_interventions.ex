@@ -17,11 +17,11 @@ defmodule Orchid.Hook.ApplyInterventions do
 
   ## Output Format
 
-  Always returns `{:ok, %{key => Param}}` (map format).
+  Always returns `{:ok, [Param]}` (list format).
   """
   @behaviour Orchid.Runner.Hook
 
-  alias OrchidIntervention.{Operate, Resolver}
+  alias OrchidIntervention.{Operate, Resolver, KeyBuilder}
 
   @impl true
   def call(ctx, next_fn) do
@@ -36,26 +36,25 @@ defmodule Orchid.Hook.ApplyInterventions do
     if map_size(active) == 0 do
       next_fn.(ctx)
     else
-      interv_cfg = Orchid.WorkflowCtx.get_baggage(ctx.workflow_ctx, :interv_cache)
       merge_cfg = Orchid.WorkflowCtx.get_baggage(ctx.workflow_ctx, :merge_cache)
 
-      apply_interventions(ctx, next_fn, active, {interv_cfg, merge_cfg})
+      apply_interventions(ctx, next_fn, active, merge_cfg)
     end
   end
 
   # ── Core Logic ──
 
-  defp apply_interventions(ctx, next_fn, interventions, {interv_cfg, merge_cfg}) do
+  defp apply_interventions(ctx, next_fn, interventions, merge_cfg) do
     out_keys = normalize_out_keys(ctx.out_keys)
 
-    case maybe_short_circuit(out_keys, interventions, interv_cfg) do
+    case maybe_short_circuit(out_keys, interventions) do
       {:short_circuit, result_lists} ->
         {:ok, result_lists}
 
       :execute ->
         case next_fn.(ctx) do
           {:ok, result} ->
-            merge_results(result, out_keys, interventions, {interv_cfg, merge_cfg})
+            merge_results(result, out_keys, interventions, merge_cfg)
 
           error ->
             error
@@ -65,9 +64,7 @@ defmodule Orchid.Hook.ApplyInterventions do
 
   # ── Short-circuit Decision ──
 
-  defp maybe_short_circuit(out_keys, interventions, interv_cfg) do
-    # TODO: Combine with OrchidIntervention.Storage
-    # if cache match => short_circuit_related_key
+  defp maybe_short_circuit(out_keys, interventions) do
     all_covered? = Enum.all?(out_keys, &Map.has_key?(interventions, &1))
 
     all_short_circuitable? =
@@ -79,68 +76,41 @@ defmodule Orchid.Hook.ApplyInterventions do
     if all_short_circuitable? do
       result_list =
         Enum.map(out_keys, fn key ->
-          {type, payload} = Map.fetch!(interventions, key)
-          mod = Operate.resolve_module(type)
-          resolved_param = Resolver.resolve(payload)
+          {_type, param} = Map.fetch!(interventions, key)
 
-          maybe_put_interv_cache(interv_cfg, type, key, resolved_param)
-
-          case mod.merge(nil, Orchid.Param.get_payload(resolved_param)) do
-            {:ok, merged_payload} ->
-              # Make sure key is overrided
-              %{resolved_param | payload: merged_payload, name: key}
-
-            {:error, reason} ->
-              throw({:intervention_merge_error, key, reason})
-          end
+          %{Resolver.resolve(param, false) | name: key}
         end)
 
       {:short_circuit, result_list}
     else
       :execute
     end
-  catch
-    {:intervention_merge_error, key, reason} ->
-      {:error, {:intervention_failed, key, reason}}
   end
 
   # ── Post-execution Merge ──
 
-  defp merge_results(result, out_keys, interventions, {interv_cfg, merge_cfg}) do
+  defp merge_results(result, out_keys, interventions, cache_cfg) do
     result_map = normalize_result_to_map(result, out_keys)
 
     merged_result =
       Enum.reduce_while(out_keys, {:ok, []}, fn key, {:ok, acc} ->
         inner_param = Map.fetch!(result_map, key)
 
-        with {type, intervention_payload} <- Map.get(interventions, key),
-             mod = Operate.resolve_module(type),
-             inter_param = Resolver.resolve(intervention_payload),
-             :miss <- try_cache_lookup(merge_cfg, mod, key, inner_param, inter_param),
-             {:ok, merged_payload} <-
-               mod.merge(
-                 Orchid.Param.get_payload(inner_param),
-                 Orchid.Param.get_payload(inter_param)
-               ) do
-          maybe_put_caches(
-            {interv_cfg, merge_cfg},
-            mod,
-            key,
-            inner_param,
-            inter_param,
-            merged_payload
-          )
-
-          {:cont, {:ok, [%{inner_param | payload: merged_payload} | acc]}}
-        else
+        case Map.get(interventions, key) do
           nil ->
             {:cont, {:ok, [inner_param | acc]}}
 
-          {:ok, cached_payload} ->
-            {:cont, {:ok, [%{inner_param | payload: cached_payload} | acc]}}
+          {type, intervention_payload} ->
+            mod = Operate.resolve_module(type)
+            inter_param = Resolver.resolve(intervention_payload)
 
-          {:error, reason} ->
-            {:halt, {:error, {:intervention_failed, key, reason}}}
+            case mod.data_enable() do
+              {false, true} ->
+                {:cont, {:ok, [%{Resolver.resolve(intervention_payload, false) | name: key} | acc]}}
+
+              {true, true} ->
+                process_heavy_merge(mod, key, inner_param, inter_param, cache_cfg, acc)
+            end
         end
       end)
 
@@ -155,51 +125,32 @@ defmodule Orchid.Hook.ApplyInterventions do
     end
   end
 
-  defp try_cache_lookup(nil, _mod, _key, _inner, _inter), do: :miss
+  defp process_heavy_merge(mod, key, inner_param, inter_param, cache_cfg, acc) do
+    # 1. 算 Hash
+    inner_digest = KeyBuilder.get_digest(inner_param)
+    inter_digest = KeyBuilder.get_digest(inter_param)
+    cache_key = KeyBuilder.merge_result_key(mod, key, inner_digest, inter_digest)
 
-  defp try_cache_lookup(merge_cfg, mod, key, inner, inter) do
-    case mod.data_enable() do
-      {true, true} ->
-        i_key = OrchidIntervention.KeyBuilder.intervention_key(mod, key, get_digest(inter))
-        inner_key = get_digest(inner)
-        OrchidIntervention.Storage.get_merge_result(merge_cfg, mod, i_key, inner_key)
+    # 2. 查 Cache
+    case OrchidIntervention.Storage.get(cache_cfg, cache_key) do
+      {:ok, cached_payload} ->
+        {:cont, {:ok, [%{inner_param | payload: cached_payload} | acc]}}
 
-      {false, true} ->
-        # True is inter side
-        {:ok, inter}
+      :miss ->
+        # 3. 没命中，做昂贵的数学计算
+        case mod.merge(
+               Orchid.Param.get_payload(inner_param),
+               Orchid.Param.get_payload(inter_param)
+             ) do
+          {:ok, merged_payload} ->
+            # 4. 回写 Cache
+            OrchidIntervention.Storage.put(cache_cfg, cache_key, merged_payload)
+            {:cont, {:ok, [%{inner_param | payload: merged_payload} | acc]}}
+
+          {:error, reason} ->
+            {:halt, {:error, {:intervention_failed, key, reason}}}
+        end
     end
-  end
-
-  defp maybe_put_caches({interv, merge}, mod, key, inner, inter, result_payload) do
-    maybe_put_interv_cache(interv, mod, key, inter)
-
-    if merge && mod.data_enable() == {true, true} do
-      i_key = OrchidIntervention.KeyBuilder.intervention_key(mod, key, get_digest(inter))
-      inner_key = get_digest(inner)
-      OrchidIntervention.Storage.put_merge_result(merge, mod, i_key, inner_key, result_payload)
-    end
-
-    :ok
-  end
-
-  defp maybe_put_interv_cache(nil, _mod, _key, _inter), do: :ok
-
-  defp maybe_put_interv_cache(cfg, mod, key, inter) do
-    digest = get_digest(inter)
-
-    OrchidIntervention.Storage.put_intervention(
-      cfg,
-      mod,
-      key,
-      digest,
-      Orchid.Param.get_payload(inter)
-    )
-  end
-
-  defp get_digest(%Orchid.Param{metadata: %{cache_key: key}}) when is_binary(key), do: key
-
-  defp get_digest(%Orchid.Param{payload: payload}) do
-    :crypto.hash(:md5, :erlang.term_to_binary(payload))
   end
 
   # ── Helpers ──

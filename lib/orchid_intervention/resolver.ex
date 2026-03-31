@@ -1,11 +1,15 @@
 defmodule OrchidIntervention.Resolver do
   @moduledoc "A helper to resolve orchid param."
 
-  @spec resolve(OrchidIntervention.payload()) :: Orchid.Param.t() | no_return()
-  def resolve(thunk_or_value) do
+  @spec resolve(OrchidIntervention.payload(), boolean()) :: Orchid.Param.t() | no_return()
+  def resolve(thunk_or_value, hydrate? \\ true) do
     val = if is_function(thunk_or_value, 0), do: thunk_or_value.(), else: thunk_or_value
 
-    hydrate_if_ref(val)
+    if hydrate? do
+      hydrate_if_ref(val)
+    else
+      val
+    end
   end
 
   defp hydrate_if_ref(%Orchid.Param{payload: {:ref, repo_conf, key}} = param) do
