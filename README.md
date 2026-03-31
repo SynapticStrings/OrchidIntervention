@@ -108,18 +108,6 @@ interventions = %{
 
 `Grind` never ran — its output key `"powder"` was fully covered by an `:override` intervention.
 
-## API Summary
-
-| Component | Role |
-|-----------|------|
-| `Orchid.Hook.ApplyInterventions` | Global hook — applies non-input interventions to step outputs |
-| `Orchid.Operon.ApplyInputs` | Operon — injects `:input` interventions as initial params |
-| `OrchidIntervention.Operate` | Behaviour for custom intervention merge logic |
-| `OrchidIntervention.Operate.Override` | Built-in: replace output, supports short-circuit |
-| `OrchidIntervention.Resolver` | Resolves thunks and hydrates `{:ref, ...}` payloads |
-| `OrchidIntervention.KeyBuilder` | Deterministic cache key derivation for interventions |
-| `OrchidIntervention.Storage` | Two-tier cache (intervention data + merge results) |
-
 ## Custom Operate
 
 Implement the behaviour to define your own merge semantics:

@@ -1,6 +1,8 @@
 defmodule OrchidIntervention.Resolver do
   @moduledoc "A helper to resolve orchid param."
 
+  # Update thunk only,
+  # or hydrate fully.
   @spec resolve(OrchidIntervention.payload(), boolean()) :: Orchid.Param.t() | no_return()
   def resolve(thunk_or_value, hydrate? \\ true) do
     val = if is_function(thunk_or_value, 0), do: thunk_or_value.(), else: thunk_or_value
