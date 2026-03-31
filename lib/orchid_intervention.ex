@@ -21,4 +21,8 @@ defmodule OrchidIntervention do
   @spec operon_type?(intervention_type()) :: boolean()
   def operon_type?(:input), do: true
   def operon_type?(_), do: false
+
+  # TODO: apply_interventions
+  # Stratum's outside
+  # OrchidIntervention => Stratum => ... => Core
 end

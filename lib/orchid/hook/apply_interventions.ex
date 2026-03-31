@@ -72,8 +72,9 @@ defmodule Orchid.Hook.ApplyInterventions do
         end)
 
     if all_short_circuitable? do
-      result_map =
-        Enum.map(interventions, fn {key, {type, payload}} ->
+      result_list =
+        Enum.map(out_keys, fn key ->
+          {type, payload} = Map.fetch!(interventions, key)
           mod = Operate.resolve_module(type)
           resolved = Resolver.resolve(payload)
 
@@ -86,7 +87,7 @@ defmodule Orchid.Hook.ApplyInterventions do
           end
         end)
 
-      {:short_circuit, result_map}
+      {:short_circuit, result_list}
     else
       :execute
     end
@@ -98,10 +99,10 @@ defmodule Orchid.Hook.ApplyInterventions do
   # ── Post-execution Merge ──
 
   defp merge_results(result, out_keys, interventions) do
-    result_map = normalize_result(result)
+    result_map = normalize_result_to_map(result, out_keys)
 
-    merged =
-      Enum.reduce_while(out_keys, {:ok, %{}}, fn key, {:ok, acc} ->
+    merged_result =
+      Enum.reduce_while(out_keys, {:ok, []}, fn key, {:ok, acc} ->
         param = Map.fetch!(result_map, key)
 
         case Map.get(interventions, key) do
@@ -114,7 +115,7 @@ defmodule Orchid.Hook.ApplyInterventions do
 
             case mod.merge(Orchid.Param.get_payload(param), Orchid.Param.get_payload(resolved)) do
               {:ok, merged_payload} ->
-                {:cont, {:ok, Map.put(acc, key, %{param | payload: merged_payload})}}
+                {:cont, {:ok, [%{param | payload: merged_payload} | acc]}}
 
               {:error, reason} ->
                 {:halt, {:error, {:intervention_failed, key, reason}}}
@@ -122,7 +123,14 @@ defmodule Orchid.Hook.ApplyInterventions do
         end
       end)
 
-    merged
+    case merged_result do
+      {:ok, maybe_list} ->
+        # Order doesn't matter.
+        # Only need ensure the name and param's relationship.
+        {:ok, maybe_list |> format_output()}
+      error ->
+        error
+    end
   end
 
   # ── Helpers ──
@@ -136,7 +144,12 @@ defmodule Orchid.Hook.ApplyInterventions do
     Orchid.Step.ID.normalize_keys_to_set(out_keys) |> MapSet.to_list()
   end
 
-  defp normalize_result(%Orchid.Param{} = p), do: p
-  defp normalize_result(params) when is_list(params), do: params
-  defp normalize_result(%{} = map), do: Enum.map(map, fn {_key, p} -> p end)
+  defp normalize_result_to_map(%Orchid.Param{} = p, [key]), do: %{key => p}
+  defp normalize_result_to_map(params, out_keys) when is_list(params) do
+    Enum.zip(out_keys, params) |> Map.new()
+  end
+  defp normalize_result_to_map(%{} = map, _out_keys), do: map
+
+  defp format_output([single_param]), do: single_param
+  defp format_output(multiple_params) when is_list(multiple_params), do: multiple_params
 end
