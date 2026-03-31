@@ -166,7 +166,7 @@ defmodule Orchid.Hook.ApplyInterventions do
 
       {false, true} ->
         # True is inter side
-        inter
+        {:ok, inter}
     end
   end
 
