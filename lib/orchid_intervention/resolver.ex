@@ -3,18 +3,18 @@ defmodule OrchidIntervention.Resolver do
   def resolve(thunk_or_value) do
     val = if is_function(thunk_or_value, 0), do: thunk_or_value.(), else: thunk_or_value
 
-    unpack_ref_payload(val)
+    hydrate_if_ref(val)
   end
 
-  defp unpack_ref_payload(%Orchid.Param{payload: {:ref, repo_conf, key}} = p) do
+  defp hydrate_if_ref(%Orchid.Param{payload: {:ref, repo_conf, key}} = param) do
     case Orchid.Repo.dispatch_store(repo_conf, :get, [key]) do
       {:ok, raw_data} ->
-        %{p | payload: raw_data}
+        %{param | payload: raw_data}
 
       :miss ->
-        raise "Intervention hydration failed! Key #{inspect(key)} missing in Repo<#{repo_conf}>."
+        raise "Intervention hydration failed: key #{inspect(key)} missing in #{inspect(repo_conf)}"
     end
   end
 
-  defp unpack_ref_payload(res), do: res
+  defp hydrate_if_ref(val), do: val
 end

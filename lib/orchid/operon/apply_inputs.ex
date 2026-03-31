@@ -1,57 +1,41 @@
 defmodule Orchid.Operon.ApplyInputs do
+  @moduledoc """
+  Operon middleware that injects `:input`-typed interventions as initial parameters.  
+
+  Only keys that are **not produced by any step** in the DAG are eligible.  
+  This mirrors how a user would pass `inputs` to `Orchid.run/3`, but sourced  
+  from the intervention map instead.  
+
+  Explicit `initial_params` passed by the caller take precedence over  
+  injected interventions (interventions fill gaps, they don't overwrite).  
+  """
   @behaviour Orchid.Operon
 
   @impl true
-  @spec call(Orchid.Operon.Request.t(), (any() -> any())) :: any()
   def call(request, next_func) do
-    interventions = Orchid.WorkflowCtx.get_baggage(request.workflow_ctx, :interventions, %{})
-    initial_input_interventions = filter_initial_inputs(request.recipe.steps, interventions)
+    interventions =
+      Orchid.WorkflowCtx.get_baggage(request.workflow_ctx, :interventions, %{})
 
-    if map_size(initial_input_interventions) == 0 do
+    input_interventions = filter_input_interventions(request.recipe.steps, interventions)
+
+    if map_size(input_interventions) == 0 do
       next_func.(request)
     else
       injected_params =
-        initial_input_interventions
-        |> Enum.map(fn {key, spec} ->
-          case spec do
-            %{input: val} ->
-              {key, OrchidIntervention.Resolver.resolve(val)}
-
-            {:input, val} ->
-              {key, OrchidIntervention.Resolver.resolve(val)}
-          end
+        Map.new(input_interventions, fn {key, {:input, payload}} ->
+          {key, OrchidIntervention.Resolver.resolve(payload)}
         end)
-        |> IO.inspect()
-        |> Enum.into(%{})
 
-      final_initial_params =
-        request.initial_params
-        |> case do
-          [] ->
-            %{}
+      existing_params = normalize_initial_params(request.initial_params)
 
-          [_ | _] = list_params ->
-            Enum.map(list_params, fn p -> {p.name, p} end) |> Enum.into(%{})
+      # Explicit params win over injected ones  
+      merged = Map.merge(injected_params, existing_params)
 
-          %Orchid.Param{} = p ->
-            %{p.name => p}
-
-          %{} = map ->
-            map
-
-          nil ->
-            %{}
-        end
-        |> Map.merge(injected_params)
-
-      next_func.(%{
-        request
-        | initial_params: final_initial_params
-      })
+      next_func.(%{request | initial_params: merged})
     end
   end
 
-  defp filter_initial_inputs(steps, interventions) do
+  defp filter_input_interventions(steps, interventions) do
     produced_keys =
       steps
       |> Enum.flat_map(fn step ->
@@ -60,19 +44,26 @@ defmodule Orchid.Operon.ApplyInputs do
       end)
       |> MapSet.new()
 
-    # Only saved the keys that non-produced as inputs
     interventions
-    |> Enum.filter(fn {key, _spec} ->
-      normalized_key = Orchid.Step.ID.normalize_keys_to_set(key)
-      MapSet.disjoint?(normalized_key, produced_keys)
-    end)
-    |> Enum.reject(fn {_key, spec} ->
-      case spec do
-        %{} -> not Map.has_key?(spec, :input)
-        {:input, _} -> true
-        _ -> false
-      end
+    |> Enum.filter(fn
+      {key, {:input, _val}} ->
+        key
+        |> Orchid.Step.ID.normalize_keys_to_set()
+        |> MapSet.disjoint?(produced_keys)
+
+      _ ->
+        false
     end)
     |> Map.new()
   end
+
+  defp normalize_initial_params(nil), do: %{}
+  defp normalize_initial_params([]), do: %{}
+  defp normalize_initial_params(%Orchid.Param{} = p), do: %{p.name => p}
+
+  defp normalize_initial_params(list) when is_list(list) do
+    Map.new(list, fn p -> {p.name, p} end)
+  end
+
+  defp normalize_initial_params(%{} = map), do: map
 end

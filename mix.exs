@@ -19,7 +19,7 @@ defmodule OrchidIntervention.MixProject do
 
   defp deps do
     [
-      {:orchid, "~> 0.6"},
+      {:orchid, "~> 0.6"}
     ]
   end
 end

@@ -1,30 +1,64 @@
 defmodule OrchidIntervention.Operate do
   @moduledoc """
-  Declara how interventions that from outside take effect to
-  Orchid DAG's specific Param.
+  Declares how an intervention type merges external data into a DAG step's output.  
 
-  For some custome type/module. like mask, overlap, etc.
+  Every intervention type (`:override`, custom modules like `MyApp.Operate.Offset`)  
+  must implement this behaviour. The callbacks inform the Hook whether the step  
+  can be short-circuited and how caching keys should be derived.  
+
+  ## Built-in Implementations  
+
+  - `OrchidIntervention.Operate.Override` — replaces step output entirely,  
+    supports short-circuit.  
+
+  ## Custom Implementations  
+
+  Pass the module atom directly as the intervention type:
+
+      %{"signal" => {MyApp.Operate.Offset, offset_param}}
+
+  The module must implement all callbacks in this behaviour.
   """
 
+  @doc """
+  Whether this intervention type allows bypassing step execution entirely.  
+
+  When `true` and **all** output keys of a step are covered by short-circuit-capable  
+  interventions, the step body is never called.  
+  """
   @callback short_circuit?() :: boolean()
 
   @doc """
-  Defines the enabling state of the data. Used for subsequent calculations of merged cache keys.
+  Declares which data sources are relevant for cache key derivation.  
 
-  Returns `{Use_internal_data?, Use_intervening_data?}`.
+  Returns `{use_inner_result?, use_intervention_data?}`.  
 
-  For example, `:override` returns `{false, true}`, while `:offset` returns `{true, true}`.
+  Examples:  
+  - `:override` → `{false, true}` — inner data changes don't invalidate cache  
+  - A hypothetical `:offset` → `{true, true}` — both matter  
   """
   @callback data_enable() :: {boolean(), boolean()}
 
   @doc """
-  Perform the actual merge or overwrite logic.
+  Performs the actual merge of step output with intervention data.  
 
-  - If `short_circuit?` is true, `inner_data` is nil.
-  - Else, `inner_data` is the original result calculated by Step.
+  - `inner_data` is the step's computed payload (or `nil` when short-circuiting).  
+  - `intervention_data` is the resolved intervention payload.
+
+  Must return `{:ok, merged_payload}` or `{:error, reason}`.
   """
   @callback merge(
               inner_data :: Orchid.Param.payload() | nil,
               intervention_data :: Orchid.Param.payload()
             ) :: {:ok, Orchid.Param.payload()} | {:error, term()}
+
+  @doc """
+  Resolves an intervention type atom to its Operate implementation module.  
+
+  Built-in atoms are mapped internally; any other atom is assumed to be  
+  a module that implements this behaviour directly.
+  """
+  @spec resolve_module(OrchidIntervention.intervention_type()) :: module()
+  def resolve_module(:override), do: OrchidIntervention.Operate.Override
+  def resolve_module(mod) when is_atom(mod), do: mod
 end
