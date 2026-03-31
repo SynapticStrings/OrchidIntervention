@@ -64,7 +64,6 @@ defmodule OrchidInterventionTest do
       ]
 
       interventions = %{
-        # "in1" => {:input, Orchid.Param.new("in1", :binary, "In1")},
         "in2" => {:input, Orchid.Param.new("in1", :binary, "In2")}
       }
 

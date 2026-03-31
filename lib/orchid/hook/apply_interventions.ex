@@ -63,6 +63,8 @@ defmodule Orchid.Hook.ApplyInterventions do
   # ── Short-circuit Decision ──
 
   defp maybe_short_circuit(out_keys, interventions) do
+    # TODO: Combine with OrchidIntervention.Storage
+    # if cache match => short_circuit_related_key
     all_covered? = Enum.all?(out_keys, &Map.has_key?(interventions, &1))
 
     all_short_circuitable? =

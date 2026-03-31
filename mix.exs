@@ -18,7 +18,7 @@ defmodule OrchidIntervention.MixProject do
       test_coverage: [
         ignore_modules: [
           ~r/OrchidInterventionTest.OrchidSteps.*/,
-          OrchidIntervention.Operate.Override
+          # OrchidIntervention.Operate.Override
         ]
       ]
     ]
