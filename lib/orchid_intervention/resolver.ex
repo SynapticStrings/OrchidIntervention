@@ -1,4 +1,6 @@
 defmodule OrchidIntervention.Resolver do
+  @moduledoc "A helper to resolve orchid param."
+
   @spec resolve(OrchidIntervention.payload()) :: Orchid.Param.t() | no_return()
   def resolve(thunk_or_value) do
     val = if is_function(thunk_or_value, 0), do: thunk_or_value.(), else: thunk_or_value

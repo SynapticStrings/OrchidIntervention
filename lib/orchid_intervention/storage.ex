@@ -9,12 +9,12 @@ defmodule OrchidIntervention.Storage do
 
   ## Architecture
 
-      ┌─────────────────────┐     ┌──────────────────────┐
-      │  Intervention Store │     │  MergeResult Store   │
-      │  (read-only in DAG) │     │  (read+write in DAG) │
-      │  keyed by           │     │  keyed by            │
-      │  InterventionKey    │     │  MergeResultKey      │
-      └─────────────────────┘     └──────────────────────┘
+      # ┌─────────────────────┐     ┌──────────────────────┐
+      # │  Intervention Store │     │  MergeResult Store   │
+      # │  (read-only in DAG) │     │  (read+write in DAG) │
+      # │  keyed by           │     │  keyed by            │
+      # │  InterventionKey    │     │  MergeResultKey      │
+      # └─────────────────────┘     └──────────────────────┘
 
   Both stores implement `Orchid.Repo`. The MergeResult store additionally
   implements `Orchid.Repo.Deletable` for targeted invalidation.

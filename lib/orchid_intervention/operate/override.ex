@@ -1,4 +1,6 @@
 defmodule OrchidIntervention.Operate.Override do
+  @moduledoc "An example, implement override."
+
   @behaviour OrchidIntervention.Operate
 
   @impl true
