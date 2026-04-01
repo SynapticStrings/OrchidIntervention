@@ -16,11 +16,11 @@ defmodule OrchidInterventionTest do
 
   setup do
     :telemetry.attach(
-        "orchid-step-exception-logger",
-        [:orchid, :step, :exception],
-        &Orchid.Runner.Hooks.Telemetry.error_handler/4,
-        %{}
-      )
+      "orchid-step-exception-logger",
+      [:orchid, :step, :exception],
+      &Orchid.Runner.Hooks.Telemetry.error_handler/4,
+      %{}
+    )
 
     :ok
   end
@@ -96,16 +96,18 @@ defmodule OrchidInterventionTest do
     test "override can change data" do
       graph = complex_graph()
       input = Orchid.Param.new("entry", :binary, "Entry")
+
       interventions = %{
         # Inject as partial
         "f3" => {:override, Orchid.Param.new("non-F3", :binary, "FIII")},
         "f2out" => {:override, Orchid.Param.new("f3", :binary, "F2OUT")}
       }
 
-      {:ok, results} = Orchid.run(graph, input,
-        global_hooks_stack: [Orchid.Hook.ApplyInterventions],
-        baggage: %{interventions: interventions}
-      )
+      {:ok, results} =
+        Orchid.run(graph, input,
+          global_hooks_stack: [Orchid.Hook.ApplyInterventions],
+          baggage: %{interventions: interventions}
+        )
 
       assert results["f3"].payload == "FIII"
       assert String.contains?(results["merged1"].payload, "F2OUT")

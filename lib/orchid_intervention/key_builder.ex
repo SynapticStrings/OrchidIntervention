@@ -28,12 +28,11 @@ defmodule OrchidIntervention.KeyBuilder do
 
   @type key_type :: binary()
 
-
   def get_digest(%Orchid.Param{metadata: %{cache_key: key}}) when is_binary(key), do: key
+
   def get_digest(%Orchid.Param{payload: payload}) do
     :crypto.hash(@hash_algo, :erlang.term_to_binary(payload))
   end
-
 
   @doc """
   Derives a cache key for the intervention data itself.
@@ -67,7 +66,8 @@ defmodule OrchidIntervention.KeyBuilder do
   - `{true, true}` (`:offset` etc.): both sources invalidate
   - `{true, false}`: intervention data changes don't invalidate (unusual)
   """
-  @spec merge_result_key(module(), Orchid.Step.io_key(), key_type(), key_type() | nil) :: key_type()
+  @spec merge_result_key(module(), Orchid.Step.io_key(), key_type(), key_type() | nil) ::
+          key_type()
   def merge_result_key(operate_mod, io_key, intervention_key, inner_result_key \\ nil) do
     {use_inner?, use_interv?} = operate_mod.data_enable()
 

@@ -17,7 +17,7 @@ defmodule OrchidIntervention.MixProject do
       docs: docs(),
       test_coverage: [
         ignore_modules: [
-          ~r/.*Test.*/,
+          ~r/.*Test.*/
           # OrchidIntervention.Operate.Override
         ]
       ]

@@ -106,7 +106,8 @@ defmodule Orchid.Hook.ApplyInterventions do
 
             case mod.data_enable() do
               {false, true} ->
-                {:cont, {:ok, [%{Resolver.resolve(intervention_payload, false) | name: key} | acc]}}
+                {:cont,
+                 {:ok, [%{Resolver.resolve(intervention_payload, false) | name: key} | acc]}}
 
               {true, true} ->
                 process_heavy_merge(mod, key, inner_param, inter_param, cache_cfg, acc)
@@ -171,7 +172,10 @@ defmodule Orchid.Hook.ApplyInterventions do
     Enum.zip(out_keys, params) |> Map.new()
   end
 
-  defp normalize_result_to_map(%{} = map, _out_keys), do: map
+  defp normalize_result_to_map(%Orchid.Param{} = p, key) when is_atom(key) or is_binary(key),
+    do: %{key => p}
+
+  defp normalize_result_to_map(%{} = map, _out_keys) when not is_struct(map), do: map
 
   defp format_output([single_param]), do: single_param
   defp format_output(multiple_params) when is_list(multiple_params), do: multiple_params
