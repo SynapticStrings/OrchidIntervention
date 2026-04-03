@@ -4,7 +4,7 @@ defmodule OrchidIntervention do
   """
 
   @type intervention_type :: :input | :override | module()
-  @type payload :: (-> Orchid.Param.t()) | Orchid.Param.t() | term()
+  @type payload :: (-> Orchid.Param.t()) | mfa() | Orchid.Param.t() | term()
   @type intervention_spec :: {intervention_type(), payload()}
   @type t :: %{Orchid.Step.io_key() => intervention_spec()}
 

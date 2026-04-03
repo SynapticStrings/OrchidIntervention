@@ -5,7 +5,12 @@ defmodule OrchidIntervention.Resolver do
   # or hydrate fully.
   @spec resolve(OrchidIntervention.payload(), boolean()) :: Orchid.Param.t() | no_return()
   def resolve(thunk_or_value, hydrate? \\ true) do
-    val = if is_function(thunk_or_value, 0), do: thunk_or_value.(), else: thunk_or_value
+    val =
+      case thunk_or_value do
+        thunk when is_function(thunk, 0) -> thunk.()
+        {module, function, arguments} -> apply(module, function, arguments)
+        value -> value
+      end
 
     if hydrate? do
       hydrate_if_ref(val)
