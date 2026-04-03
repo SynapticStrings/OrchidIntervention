@@ -3,6 +3,13 @@ defmodule OrchidIntervention.Resolver do
 
   # Update thunk only,
   # or hydrate fully.
+  @doc """
+  Resolve data into Orchid's Param.
+
+  For MFA, prefer use format like:
+
+      {Orchid.Repo, :dispatch_store, [repo_conf, :get, ["key"]]}
+  """
   @spec resolve(OrchidIntervention.payload(), boolean()) :: Orchid.Param.t() | no_return()
   def resolve(thunk_or_value, hydrate? \\ true) do
     val =

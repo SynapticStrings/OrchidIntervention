@@ -68,7 +68,7 @@ defmodule OrchidIntervention.KeyBuilder do
   """
   @spec merge_result_key(module(), Orchid.Step.io_key(), key_type(), key_type() | nil) ::
           key_type()
-  def merge_result_key(operate_mod, io_key, intervention_key, inner_result_key \\ nil) do
+  def merge_result_key(operate_mod, io_key, intervention_key, inner_result_key) do
     {use_inner?, use_interv?} = operate_mod.data_enable()
 
     components =

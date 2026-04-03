@@ -127,24 +127,21 @@ defmodule Orchid.Hook.ApplyInterventions do
   end
 
   defp process_heavy_merge(mod, key, inner_param, inter_param, cache_cfg, acc) do
-    # 1. 算 Hash
     inner_digest = KeyBuilder.get_digest(inner_param)
     inter_digest = KeyBuilder.get_digest(inter_param)
     cache_key = KeyBuilder.merge_result_key(mod, key, inner_digest, inter_digest)
 
-    # 2. 查 Cache
     case OrchidIntervention.Storage.get(cache_cfg, cache_key) do
       {:ok, cached_payload} ->
         {:cont, {:ok, [%{inner_param | payload: cached_payload} | acc]}}
 
       :miss ->
-        # 3. 没命中，做昂贵的数学计算
         case mod.merge(
                Orchid.Param.get_payload(inner_param),
                Orchid.Param.get_payload(inter_param)
              ) do
           {:ok, merged_payload} ->
-            # 4. 回写 Cache
+            # Writeback cache
             OrchidIntervention.Storage.put(cache_cfg, cache_key, merged_payload)
             {:cont, {:ok, [%{inner_param | payload: merged_payload} | acc]}}
 

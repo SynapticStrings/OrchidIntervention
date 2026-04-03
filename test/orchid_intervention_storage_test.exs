@@ -61,6 +61,14 @@ defmodule OrchidInterventionStorageTest do
     :ok
   end
 
+  defmodule FetchBlobAndMerge do
+    def call(store_conf, key) do
+      {:ok, payload} = Orchid.Repo.dispatch_store(store_conf, :get, [key])
+
+      Orchid.Param.new("f3", :binary, payload)
+    end
+  end
+
   describe "outside can inject interventions via storage" do
     test "hydrates :ref payload using Resolver successfully" do
       ets = InterventionStorage.init()
@@ -68,15 +76,19 @@ defmodule OrchidInterventionStorageTest do
 
       InterventionStorage.put(ets, "secret_key", "secret_value")
 
-      # 通过 thunk 函数和直接传值分别测试 Resolver  
+      # 通过 thunk 函数和直接传值分别测试 Resolver
       param_direct = Orchid.Param.new("f1", :binary, {:ref, repo_conf, "secret_key"})
       param_thunk = fn -> Orchid.Param.new("f2", :binary, {:ref, repo_conf, "secret_key"}) end
+      param_mfa = {FetchBlobAndMerge, :call, [repo_conf, "secret_key"]}
 
       assert %Orchid.Param{payload: "secret_value"} =
                OrchidIntervention.Resolver.resolve(param_direct)
 
       assert %Orchid.Param{payload: "secret_value"} =
                OrchidIntervention.Resolver.resolve(param_thunk)
+
+      assert %Orchid.Param{payload: "secret_value"} =
+               OrchidIntervention.Resolver.resolve(param_mfa)
     end
 
     test "raises error when hydration fails due to cache miss" do
@@ -106,7 +118,7 @@ defmodule OrchidInterventionStorageTest do
         baggage: %{interventions: interventions, merge_cache: repo_conf}
       ]
 
-      # First run (Cache Miss -> Computes and Puts to Cache)  
+      # First run (Cache Miss -> Computes and Puts to Cache)
       {:ok, res1} =
         Orchid.run(
           complex_graph(),
@@ -114,14 +126,14 @@ defmodule OrchidInterventionStorageTest do
           run_opts
         )
 
-      # 验证结果被修改  
+      # 验证结果被修改
       {_, f1out_param} = Enum.find(res1, fn {k, _} -> k == "f1out" end)
       assert f1out_param.payload =~ "HeavyData"
 
-      # 验证 Cache 中已存入数据  
+      # 验证 Cache 中已存入数据
       assert :ets.info(ets, :size) > 0
 
-      # Second run (Cache Hit -> Fetches directly from Cache)  
+      # Second run (Cache Hit -> Fetches directly from Cache)
       {:ok, res2} =
         Orchid.run(
           complex_graph(),
@@ -129,7 +141,7 @@ defmodule OrchidInterventionStorageTest do
           run_opts
         )
 
-      # 结果应该和第一次完全一致  
+      # 结果应该和第一次完全一致
       assert res1 == res2
     end
   end
@@ -138,13 +150,13 @@ defmodule OrchidInterventionStorageTest do
     test "KeyBuilder normalizes inputs properly" do
       alias OrchidIntervention.KeyBuilder
 
-      # get_digest  
+      # get_digest
       assert "custom_hash" ==
                KeyBuilder.get_digest(%Orchid.Param{metadata: %{cache_key: "custom_hash"}})
 
       assert is_binary(KeyBuilder.get_digest(%Orchid.Param{payload: "actual_data"}))
 
-      # intervention_key combinations  
+      # intervention_key combinations
       k1 = KeyBuilder.intervention_key(:override, "k_str", "digest_str")
       k2 = KeyBuilder.intervention_key(DummyOverrideModule, :k_atom, %{complex: "term"})
       k3 = KeyBuilder.intervention_key(:override, ["k_list"], "digest")
@@ -152,14 +164,14 @@ defmodule OrchidInterventionStorageTest do
 
       assert is_binary(k1) and is_binary(k2) and is_binary(k3) and is_binary(k4)
 
-      # merge_result_key prepends conditionally based on `data_enable`  
-      # Override is {false, true}  
+      # merge_result_key prepends conditionally based on `data_enable`
+      # Override is {false, true}
       res_key_override =
         KeyBuilder.merge_result_key(OrchidIntervention.Operate.Override, "k", k1, "inner_k")
 
       assert is_binary(res_key_override)
 
-      # HeavyMergeOp is {true, true}  
+      # HeavyMergeOp is {true, true}
       res_key_heavy = KeyBuilder.merge_result_key(HeavyMergeOp, "k", k1, "inner_k")
       assert is_binary(res_key_heavy)
     end
