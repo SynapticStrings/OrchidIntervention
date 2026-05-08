@@ -64,7 +64,9 @@ defmodule OrchidIntervention.MixProject do
       main: "readme",
       extras: ["README.md"],
       source_ref: "v#{@version}",
-      source_url: @source_url
+      source_url: @source_url,
+      assets: %{"artworks" => "artworks"},
+      logo: "artworks/orchid_intervention_without_name.svg"
     ]
   end
 end
