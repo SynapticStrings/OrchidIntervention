@@ -1,3 +1,5 @@
+![icon](artworks/orchid_intervention_without_name.svg)
+
 # OrchidIntervention
 
 Inject, override, and short-circuit step outputs in Orchid DAGs — without touching the graph structure.

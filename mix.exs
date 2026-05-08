@@ -1,7 +1,7 @@
 defmodule OrchidIntervention.MixProject do
   use Mix.Project
 
-  @version "0.1.2"
+  @version "0.1.3"
   @source_url "https://github.com/SynapticStrings/OrchidIntervention"
 
   def project do
@@ -50,7 +50,7 @@ defmodule OrchidIntervention.MixProject do
   defp package do
     [
       name: "orchid_intervention",
-      files: ~w(lib .formatter.exs mix.exs README.md LICENSE),
+      files: ~w(lib .formatter.exs mix.exs README.md LICENSE artworks),
       licenses: ["MIT"],
       links: %{
         "GitHub" => @source_url,
