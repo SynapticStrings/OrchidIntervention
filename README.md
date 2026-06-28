@@ -118,8 +118,8 @@ Implement the behaviour to define your own merge semantics:
 defmodule MyApp.Operate.Offset do
   @behaviour OrchidIntervention.Operate
 
-  @impl true
-  def short_circuit?, do: false
+  # short_circuit? is derived from data_enable: {true, true} means inner is
+  # needed, so short-circuit is removed automatically.
 
   @impl true
   def data_enable, do: {true, true}  # both inner and intervention affect cache

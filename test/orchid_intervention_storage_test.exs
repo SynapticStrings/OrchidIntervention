@@ -42,7 +42,6 @@ defmodule OrchidInterventionStorageTest do
 
   defmodule HeavyMergeOp do
     @behaviour OrchidIntervention.Operate
-    def short_circuit?, do: false
     def data_enable, do: {true, true}
 
     def merge(inner_data, intervention_data) do
@@ -201,9 +200,10 @@ defmodule OrchidInterventionStorageTest do
     end
 
     test "OrchidIntervention.Operate.Override callbacks" do
+      alias OrchidIntervention.Operate, as: Operate
       alias OrchidIntervention.Operate.Override
 
-      assert Override.short_circuit?() == true
+      assert Operate.short_circuit?(Override) == true
       assert Override.data_enable() == {false, true}
       assert {:ok, "inter"} == Override.merge("inner", "inter")
     end

@@ -21,14 +21,6 @@ defmodule OrchidIntervention.Operate do
   """
 
   @doc """
-  Whether this intervention type allows bypassing step execution entirely.  
-
-  When `true` and **all** output keys of a step are covered by short-circuit-capable  
-  interventions, the step body is never called.  
-  """
-  @callback short_circuit?() :: boolean()
-
-  @doc """
   Declares which data sources are relevant for cache key derivation.  
 
   Returns `{use_inner_result?, use_intervention_data?}`.  
@@ -51,6 +43,19 @@ defmodule OrchidIntervention.Operate do
               inner_data :: Orchid.Param.payload() | nil,
               intervention_data :: Orchid.Param.payload()
             ) :: {:ok, Orchid.Param.payload()} | {:error, term()}
+
+  @doc """
+  Whether this intervention type can short-circuit step execution.
+
+  Derived from `data_enable/0`: when inner result is not needed
+  (`use_inner? = false`), the step can be bypassed and the intervention
+  data used directly.
+  """
+  @spec short_circuit?(module()) :: boolean()
+  def short_circuit?(mod) do
+    {use_inner?, _use_interv?} = mod.data_enable()
+    not use_inner?
+  end
 
   @doc """
   Resolves an intervention type atom to its Operate implementation module.  

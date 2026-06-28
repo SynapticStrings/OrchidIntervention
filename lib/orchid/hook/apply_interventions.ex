@@ -70,7 +70,7 @@ defmodule Orchid.Hook.ApplyInterventions do
     all_short_circuitable? =
       all_covered? and
         Enum.all?(interventions, fn {_key, {type, _val}} ->
-          Operate.resolve_module(type).short_circuit?()
+          Operate.short_circuit?(Operate.resolve_module(type))
         end)
 
     if all_short_circuitable? do

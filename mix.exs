@@ -1,7 +1,7 @@
 defmodule OrchidIntervention.MixProject do
   use Mix.Project
 
-  @version "0.1.3"
+  @version "0.2.0"
   @source_url "https://github.com/SynapticStrings/OrchidIntervention"
 
   def project do
@@ -62,7 +62,7 @@ defmodule OrchidIntervention.MixProject do
   defp docs do
     [
       main: "readme",
-      extras: ["README.md"],
+      extras: ["README.md", "CHANGELOG.md"],
       source_ref: "v#{@version}",
       source_url: @source_url,
       assets: %{"artworks" => "artworks"},
