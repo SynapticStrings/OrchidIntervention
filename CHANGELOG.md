@@ -1,5 +1,19 @@
 # Changelog
 
+## [2026-08-25] - v0.2.1
+
+### Fixed
+
+- `normalize_result_to_map/2` in `Orchid.Hook.ApplyInterventions` paired step
+  outputs with out keys positionally (`Enum.zip(out_keys, params)`), but
+  `out_keys` had already passed through MapSet normalization, destroying
+  the declared order. On multi-output steps this mis-paired the inner data
+  handed to merge-type interventions (override-type interventions were
+  unaffected since they never read the inner data). Params are now paired
+  by `Param.name` — which the core hook has already aligned with its out
+  key — with the positional zip kept as a fallback for raw (non-Param)
+  results.
+
 ## [2026-06-28] - v0.2.0
 
 ### Breaking

@@ -165,8 +165,17 @@ defmodule Orchid.Hook.ApplyInterventions do
   defp normalize_result_to_map(%Orchid.Param{} = p, [key]) when is_atom(key) or is_binary(key),
     do: normalize_result_to_map(p, key)
 
+  # Pair by param name: the core hook has already aligned each param's
+  # name with its out key, and out_keys here went through MapSet
+  # normalization (order destroyed), so a positional zip would mis-pair
+  # inner data on multi-output steps. Positional zip remains as the
+  # fallback for raw (non-Param) results.
   defp normalize_result_to_map(params, out_keys) when is_list(params) do
-    Enum.zip(out_keys, params) |> Map.new()
+    if Enum.all?(params, &match?(%Orchid.Param{}, &1)) do
+      Map.new(params, fn %Orchid.Param{name: name} = param -> {name, param} end)
+    else
+      Enum.zip(out_keys, params) |> Map.new()
+    end
   end
 
   defp normalize_result_to_map(%Orchid.Param{} = p, key) when is_atom(key) or is_binary(key),
